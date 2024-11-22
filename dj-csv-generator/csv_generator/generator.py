@@ -2,6 +2,7 @@ import csv
 import typing
 
 from io import StringIO
+from enum import Enum
 
 from datetime import datetime, date
 
@@ -28,8 +29,20 @@ class CsvGenerator:
     file_name = ('{name}.csv'.format(name=_('report')))
 
     class Const:
+        
+        class BomMode(Enum):
+            NO_BOM = 'NO_BOM'  # to omit BOM prefix in a file
+            SINGLE_BOM = 'SINGLE_BOM'  # standard BOM prefix
+            DOUBLE_BOM = 'DOUBLE BOM'  # to ensure that browser won't cut the BOM prefix off the file
+
         TRUE_VAL = _('YES')
         FALSE_VAL = _('NO')
+        DEFAULT_BOM_VALUE = b'\xef\xbb\xbf'
+        DEFAULT_BOM_MODE = BomMode.DOUBLE_BOM
+
+    # Override this in derived class to change BOM value and BOM mode
+    BOM_MODE = Const.DEFAULT_BOM_MODE
+    BOM_VALUE = Const.DEFAULT_BOM_VALUE
 
     def __init__(self):
         pass
@@ -109,8 +122,14 @@ class CsvGenerator:
     def get_file_obj(self, data, delimiter: str = ';') -> StringIO:
         context = self.get_context_data(data)
         file_obj = StringIO()
+
         # Adding BOM bytes to be friendly for MS Excel
-        file_obj.write(b'\xef\xbb\xbf'.decode('utf-8'))
+        bom_value = self.BOM_VALUE.decode('utf-8')
+        if self.BOM_MODE != self.Const.BomMode.NO_BOM:
+            file_obj.write(bom_value)
+        if self.BOM_MODE == self.Const.BomMode.DOUBLE_BOM:
+            file_obj.write(bom_value)
+
         writer = csv.DictWriter(
             file_obj,
             delimiter=delimiter,
